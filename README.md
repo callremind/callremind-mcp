@@ -1,73 +1,90 @@
 # CallRemind MCP Server
 
-MCP (Model Context Protocol) server that lets AI agents interact with the
-**CallRemind REST API** — place instant calls, manage CEMAS emergency
-notifications, pick Edge TTS voices, manage agents/leads/scheduled calls, and
-query call history.
+Model Context Protocol (MCP) server for **CallRemind's AI voice calling**. Let any
+AI agent (Claude, ChatGPT, Cursor, Claude Code, Codex, opencode…) place automated
+voice calls, schedule reminders, and manage your agents, leads, voice clones,
+webhooks, and CEMAS emergency notifications — in English / Bahasa Malaysia.
 
-Targets the **CallRemind REST API** (`https://api.callremind.my/v1`), not the
-outbound engine.
+There are **two ways** to use it:
+
+| Path | Who it's for |
+|------|--------------|
+| **[Hosted endpoint](#hosted-endpoint-hosting-our-server)** — `https://mcp.callremind.my/mcp` | No setup. Add the remote URL to your client. |
+| **[npm package / self-host](#self-host-npm-package)** — run it yourself | Full control; run stdio locally or HTTP/SSE. |
 
 ---
 
 ## Table of contents
 
-- [Requirements](#requirements)
-- [Two ways to run](#two-ways-to-run)
-  - [A. npm package (easiest)](#a-npm-package-easiest)
-  - [B. From source / Docker](#b-from-source--docker)
-- [Configuration](#configuration)
+- [Hosted endpoint](#hosted-endpoint-hosting-our-server)
+- [Self-host (npm package)](#self-host-npm-package)
+- [Configuration / Settings](#configuration--settings)
 - [Client setup](#client-setup)
-  - [Claude Desktop](#claude-desktop)
-  - [Claude Code](#claude-code)
-  - [Codex (OpenAI CLI)](#codex-openai-cli)
-  - [ChatGPT (remote, HTTP/SSE)](#chatgpt-remote-httpsse)
-  - [opencode](#opencode)
-  - [Cursor](#cursor)
-  - [Generic HTTP/SSE clients](#generic-httpsse-clients)
 - [Tools](#tools)
 - [Testing](#testing)
 
 ---
 
-## Requirements
+## Hosted endpoint (hosting our server)
 
-- Node.js **>= 18**
-- A CallRemind **API key** (your user `x-api-key`). Get it from your
-  CallRemind profile, or the admin `/v1/admin/generate-key` endpoint.
+No install needed — add the remote MCP server to any client. Sign in with your
+**CallRemind account** (email one-time code, **Google**, or **GitHub**).
+
+```
+https://mcp.callremind.my/mcp
+```
+
+### Connect
+- **Claude (desktop/app):** Settings → Connectors → Add custom connector → paste the URL → sign in.
+- **ChatGPT:** Settings → Apps & Connectors → Advanced → Developer mode → add MCP connector → same URL.
+- **Cursor:** add `https://mcp.callremind.my/mcp` as a remote MCP server → the client walks you through OAuth.
+- **Any remote MCP client:** add the URL above (Streamable HTTP transport).
+
+### Claude Code plugin
+One-command install from our marketplace (adds the MCP server + a usage skill):
+
+```
+/plugin marketplace add callremind/callremind-claude-marketplace
+/plugin install callremind@callremind
+```
+
+You can also install the plugin from the **community marketplace**:
+`/plugin marketplace add anthropics/claude-plugins-community` then `callremind@claude-community`.
+
+### Auth
+- New accounts are created automatically and get **RM2 free credit**.
+- OAuth consent + `/.well-known/oauth-*` discovery are served by the endpoint.
+- Live setup/onboarding: <https://mcp.callremind.my/connect>
 
 ---
 
-## Two ways to run
+## Self-host (npm package)
 
-### A. npm package (easiest)
-
-Install the CLI (stdio) and run it directly:
+### A. npm install + run
 
 ```bash
 npm install -g callremind-mcp
+
+# stdio (local clients)
 CALLREMIND_API_KEY=your_key callremind-mcp
+
+# HTTP/SSE (remote clients)
+CALLREMIND_API_KEY=your_key CALLREMIND_MCP_PORT=8921 callremind-mcp index-sse.js
 ```
 
-For an HTTP/SSE server (remote clients like ChatGPT):
+### B. From source
 
 ```bash
-CALLREMIND_API_KEY=your_key CALLREMIND_MCP_PORT=8921 npx callremind-mcp index-sse.js
-```
-
-### B. From source / Docker
-
-```bash
-git clone git@github.com:callremind/cemas-mcp.git
-cd cemas-mcp
+git clone git@github.com:callremind/callremind-mcp.git
+cd callremind-mcp
 npm install
-cp .env.example .env   # fill in CALLREMIND_API_URL + CALLREMIND_API_KEY
+cp .env.example .env      # set CALLREMIND_API_URL + CALLREMIND_API_KEY
 
-npm start               # stdio (local clients)
-npm run start:sse       # HTTP/SSE on http://0.0.0.0:8921/mcp
+npm start                  # stdio
+npm run start:sse          # HTTP/SSE on http://0.0.0.0:8921/mcp
 ```
 
-Docker:
+### C. Docker
 
 ```bash
 docker build -t callremind-mcp .
@@ -81,24 +98,26 @@ docker run --rm -p 8921:8921 -e CALLREMIND_API_KEY=your_key callremind-mcp node 
 
 ---
 
-## Configuration
+## Configuration / Settings
 
 | Env var | Default | Description |
 |---------|---------|-------------|
 | `CALLREMIND_API_URL` | `https://api.callremind.my/v1` | CallRemind REST API base |
-| `CALLREMIND_API_KEY` | — | Your `x-api-key` (required) |
-| `CALLREMIND_MCP_PORT` | `8921` | HTTP/SSE port (index-sse.js only) |
+| `CALLREMIND_API_KEY` | *(none)* | Your `x-api-key` (required) |
+| `CALLREMIND_MCP_PORT` | `8921` | HTTP/SSE port (`index-sse.js` only) |
 | `CALLREMIND_MCP_HOST` | `0.0.0.0` | HTTP/SSE bind host |
 | `CALLREMIND_MCP_ENDPOINT` | `/mcp` | HTTP/SSE MCP endpoint path |
 
+> The **hosted endpoint** (`mcp.callremind.my/mcp`) manages these on our side — you
+> only need `CALLREMIND_API_KEY` when self-hosting.
+
 ---
 
-## Client setup
+## Client setup (self-host)
 
 ### Claude Desktop
 
-Edit `claude_desktop_config.json` (Claude Desktop → Settings → Developer →
-Edit Config):
+Edit `claude_desktop_config.json` (Claude Desktop → Settings → Developer → Edit Config):
 
 ```json
 {
@@ -116,7 +135,6 @@ Edit Config):
 
 ```bash
 claude mcp add callremind -- npx -y callremind-mcp
-# or with env:
 claude mcp add callremind -e CALLREMIND_API_KEY=your_key -- npx -y callremind-mcp
 ```
 
@@ -124,31 +142,17 @@ claude mcp add callremind -e CALLREMIND_API_KEY=your_key -- npx -y callremind-mc
 
 ```bash
 codex mcp add callremind -- npx -y callremind-mcp
-# pass the key via shell env so it reaches the child process:
 CALLREMIND_API_KEY=your_key codex
 ```
 
-### ChatGPT (remote, HTTP/SSE)
+### ChatGPT (remote)
 
-This server uses **OAuth 2.0 (GitHub)** for authentication (required by ChatGPT).
-Run the server with `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET` set, then in
-ChatGPT add a custom MCP server with URL:
-
-```
-https://mcp.callremind.my/mcp
-```
-
-ChatGPT will discover OAuth (via `/.well-known/oauth-protected-resource`),
-redirect you to GitHub to authorize, then connect. The GitHub OAuth App's
-**Authorization callback URL** must be:
-
-```
-https://mcp.callremind.my/oauth/callback
-```
+Use the [hosted endpoint](#hosted-endpoint-hosting-our-server): `https://mcp.callremind.my/mcp`.
+ChatGPT discovers OAuth via `/.well-known/oauth-protected-resource` and signs you in.
 
 ### opencode
 
-`opencode.json` (or `~/.config/opencode/opencode.json`):
+`opencode.json`:
 
 ```json
 {
@@ -179,9 +183,7 @@ Cursor → Settings → MCP → Add server:
 }
 ```
 
-### Generic HTTP/SSE clients
-
-For any MCP client that supports remote HTTP servers:
+### Generic HTTP/SSE
 
 ```
 Transport: Streamable HTTP
@@ -194,24 +196,41 @@ URL:       http://<host>:8921/mcp
 
 | Tool | Endpoint | Purpose |
 |------|----------|---------|
+| `quickCall` | `POST /v1/calls/quick-call` | One-way call, only phone + message (Kokoro) |
+| `quickCallWithEdge` | `POST /v1/calls/quick-call-with-edge` | One-way call using Edge TTS (backup) |
 | `makeInstantCall` | `POST /v1/calls/instant` | Immediate outbound AI call |
-| `getCemasConfig` | `GET /v1/cemas` | CEMAS config + voice prefs |
-| `saveCemasConfig` | `PUT /v1/cemas/destination` | Save destination + voice/prosody |
-| `listEdgeVoices` | `GET /v1/tts/edge-voices` | List Edge TTS voices |
-| `previewEdgeVoice` | `POST /v1/tts/edge-preview` | Synthesize voice preview |
+| `makeInstantKokoroCall` | `POST /v1/calls/instant-kokoro-call` | Immediate one-way call (Kokoro) |
+| `getCemasConfig` / `saveCemasConfig` | `/v1/cemas` | CEMAS config + voice prefs |
+| `listEdgeVoices` / `previewEdgeVoice` | `/v1/tts/edge-*` | Edge TTS voices / preview |
+| `listVoices` / `kokoroPreview` | `/v1/tts/voices`, `/v1/tts/kokoro` | All voices / Kokoro preview |
+| `listTtsProviders` | `/v1/tts/providers` | List TTS providers |
+| `generateTts` | `/v1/tts/generate` | Synthesize audio (openai/elevenlabs/minimax/qwen/kokoro/edge) |
+| `validateTextSafety` | `/v1/validate-text-safety` | Profanity check (EN/MS/中文/Tamil) |
+| `getProviderInfo` | `/v1/provider/numbers` | Your DIDs / provider |
 | `listVoiceClones` / `createVoiceClone` | `/v1/voice-clones` | Manage voice clones |
 | `listAgents` / `createAgent` / `updateAgent` | `/v1/agents` | Manage AI agents |
 | `listLeads` / `createLead` | `/v1/contacts` | Manage contacts/leads |
 | `listScheduledCalls` / `createScheduledCall` | `/v1/scheduled-calls` | Schedule calls |
-| `listCallLogs` | `/v1/call-logs` | Call history |
-| `getReports` | `/v1/reports` | Call analytics |
+| `listCallLogs` / `getReports` | `/v1/call-logs`, `/v1/reports` | History / analytics |
 | `getProfile` / `updateProfile` | `/v1/profile` | Profile management |
 | `listWebhookConfigurations` / `upsertWebhookConfiguration` | `/v1/webhooks/...` | Webhooks |
+| `getSkillGuide` | `/v1/auth/skill` | Onboarding guide |
+| `createNewUser` / `validateNewUser` / `loginUser` / `logoutUser` / `requestOtp` / `validateOtp` | `/v1/auth/...` | Account & sign-in helpers |
 
 ---
 
 ## Testing
 
 ```bash
-npm test   # or: node test-api.js  (hits /v1/profile with your key)
+npm test   # node test-api.js  (hits /v1/profile with your key)
 ```
+
+---
+
+## Links
+
+- **Repo:** `https://github.com/callremind/callremind-mcp`
+- **npm:** `https://www.npmjs.com/package/callremind-mcp`
+- **REST API:** `https://api.callremind.my/v1`
+- **Hosted MCP:** `https://mcp.callremind.my/mcp`
+- **Connect/onboarding:** `https://mcp.callremind.my/connect`

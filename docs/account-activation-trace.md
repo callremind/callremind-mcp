@@ -1,4 +1,4 @@
-# CallRemind MCP — Account Activation Tools (Sample)
+# CallRemind MCP   Account Activation Tools (Sample)
 
 The MCP server exposes four account-activation/auth tools that wrap the REST
 API. All return the API's `{ ok, data }` envelope as JSON text.
@@ -10,7 +10,7 @@ API. All return the API's `{ ok, data }` envelope as JSON text.
 | `loginUser` | `POST /v1/auth/login-user` | Sign in with email + password |
 | `logoutUser` | `POST /v1/auth/logout-user` | Stateless sign-out |
 
-These tools are **pre-auth** (no `x-api-key` required) — they run on a bare
+These tools are **pre-auth** (no `x-api-key` required)   they run on a bare
 axios client since the user has no API key until after activation.
 
 ---
