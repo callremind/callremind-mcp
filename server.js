@@ -65,8 +65,8 @@ mcp.addTool({
         phone: z.string().describe("Destination phone number"),
         message: z.string().optional().describe("Notification / start message text"),
         agent_id: z.union([z.string(), z.number()]).optional().describe("Existing agent id (uses its voice + prompt)"),
-        voice_provider: z.enum(["OPENAI", "ELEVENLABS", "MINIMAX", "QWEN", "EDGETTS"]).optional().describe("TTS provider"),
-        voice: z.string().optional().describe("Voice id (OpenAI: alloy/sage; Edge: e.g. ms-MY-YasminNeural)"),
+        voice_provider: z.enum(["OPENAI", "ELEVENLABS", "MINIMAX", "QWEN", "EDGETTS", "KOKORO"]).optional().describe("TTS provider"),
+        voice: z.string().optional().describe("Voice id (OpenAI: alloy/sage; Edge: e.g. ms-MY-YasminNeural; Kokoro: e.g. af_heart)"),
         system_prompt: z.string().optional().describe("AI system prompt for a fully custom call"),
         notification_voice_message: z.string().optional().describe("Spoken message for notification agent"),
         from_number: z.string().optional().describe("Caller ID / from number"),
@@ -75,6 +75,51 @@ mcp.addTool({
     }),
     execute: async (args) => {
         const response = await apiClient.post("/calls/instant", args);
+        return toText(response.data);
+    },
+});
+
+mcp.addTool({
+    name: "quickCall",
+    description: "Place an immediate one-way outbound call voiced by Kokoro TTS (pre-generated). Only a phone + message are needed. Mirrors the MCP quickCall tool.",
+    parameters: z.object({
+        phone: z.string().describe("Destination phone number"),
+        message: z.string().describe("What the recipient hears"),
+        voice: z.string().optional().describe("Kokoro voice id, e.g. af_heart / am_adam. Defaults to af_heart."),
+        from_number: z.string().optional().describe("Caller ID / from number"),
+    }),
+    execute: async (args) => {
+        const response = await apiClient.post("/calls/quick-call", args);
+        return toText(response.data);
+    },
+});
+
+mcp.addTool({
+    name: "quickCallWithEdge",
+    description: "Place an immediate one-way outbound call voiced by Edge TTS (pre-generated). Backup of quickCall that always uses Edge TTS.",
+    parameters: z.object({
+        phone: z.string().describe("Destination phone number"),
+        message: z.string().describe("What the recipient hears"),
+        voice: z.string().optional().describe("Edge voice ShortName, e.g. en-US-AriaNeural (default)"),
+        from_number: z.string().optional().describe("Caller ID / from number"),
+    }),
+    execute: async (args) => {
+        const response = await apiClient.post("/calls/quick-call-with-edge", args);
+        return toText(response.data);
+    },
+});
+
+mcp.addTool({
+    name: "makeInstantKokoroCall",
+    description: "Place an immediate one-way outbound call always voiced by Kokoro TTS via /v1/calls/instant-kokoro-call. Pre-generates and plays a per-recipient Kokoro clip.",
+    parameters: z.object({
+        phone: z.string().describe("Destination phone number"),
+        message: z.string().describe("Message to synthesize with Kokoro"),
+        voice: z.string().optional().describe("Kokoro voice id, e.g. af_heart. Defaults to af_heart."),
+        from_number: z.string().optional().describe("Caller ID / from number"),
+    }),
+    execute: async (args) => {
+        const response = await apiClient.post("/calls/instant-kokoro-call", args);
         return toText(response.data);
     },
 });
@@ -95,14 +140,15 @@ mcp.addTool({
 
 mcp.addTool({
     name: "saveCemasConfig",
-    description: "Save the user's CEMAS destination phone(s), active flag, and Edge TTS voice + prosody (rate/pitch/volume as 0.1-10 / 0-2 / 0-1 sliders).",
+    description: "Save the user's CEMAS destination phone(s), active flag, and voice prefs. voice_provider selects Edge TTS (default) or Kokoro.",
     parameters: z.object({
         destination_phone_number: z.array(z.string()).describe("List of phone numbers to notify"),
         is_active: z.boolean().optional().describe("Whether CEMAS notifications are active"),
-        edge_voice_preference: z.string().optional().describe("Edge TTS voice ShortName, e.g. ms-MY-YasminNeural"),
-        edge_rate: z.number().optional().describe("0.1-10 (1.0 = normal)"),
-        edge_pitch: z.number().optional().describe("0-2 (1.0 = normal)"),
-        edge_volume: z.number().optional().describe("0-1 (1.0 = max)"),
+        voice_provider: z.enum(["EDGETTS", "KOKORO"]).optional().describe("TTS provider for the notification call (default EDGETTS)"),
+        edge_voice_preference: z.string().optional().describe("Voice id (Edge ShortName or Kokoro id, matching voice_provider)"),
+        edge_rate: z.number().optional().describe("0.1-10 (1.0 = normal). Edge only."),
+        edge_pitch: z.number().optional().describe("0-2 (1.0 = normal). Edge only."),
+        edge_volume: z.number().optional().describe("0-1 (1.0 = max). Edge only."),
         owner_email: z.string().optional().describe("Ignored for user API keys; required only with system API key"),
     }),
     execute: async (args) => {
@@ -139,6 +185,95 @@ mcp.addTool({
     }),
     execute: async (args) => {
         const response = await apiClient.post("/tts/edge-preview", args);
+        return toText(response.data);
+    },
+});
+
+// --- Kokoro TTS ---
+
+mcp.addTool({
+    name: "listVoices",
+    description: "List available TTS voices across providers. Returns { edge: [...], kokoro: [...] }. Use a voice id from either provider.",
+    parameters: z.object({}),
+    execute: async () => {
+        const response = await apiClient.get("/tts/voices");
+        return toText(response.data);
+    },
+});
+
+mcp.addTool({
+    name: "kokoroPreview",
+    description: "Generate a short voice clip using the Kokoro TTS engine and return the audio (raw or WAV depending on the call). Use to pick a voice.",
+    parameters: z.object({
+        text: z.string().describe("Text to synthesize"),
+        voice: z.string().optional().describe("Kokoro voice id from listVoices, e.g. af_heart / am_adam. Defaults to af_heart."),
+        speed: z.number().optional().describe("Speaking speed factor (default 1)"),
+    }),
+    execute: async (args) => {
+        const response = await apiClient.post("/tts/kokoro", args);
+        return toText(response.data);
+    },
+});
+
+mcp.addTool({
+    name: "listTtsProviders",
+    description: "List available TTS providers and their static voices (OpenAI, ElevenLabs, MiniMax, Qwen, Kokoro, Edge).",
+    parameters: z.object({}),
+    execute: async () => {
+        const response = await apiClient.get("/tts/providers");
+        return toText(response.data);
+    },
+});
+
+mcp.addTool({
+    name: "generateTts",
+    description: "Synthesize TTS audio directly (POST /v1/tts/generate). Provider: openai | elevenlabs | minimax | qwen_flash | qwen_plus | kokoro | edge. Returns a playable audio file URL.",
+    parameters: z.object({
+        text: z.string().describe("Text to synthesize"),
+        voice: z.string().optional().describe("Voice id for the selected provider"),
+        provider: z.enum(["openai", "elevenlabs", "minimax", "qwen_flash", "qwen_plus", "kokoro", "edge"]).optional().describe("TTS provider (default openai)"),
+        format: z.string().optional().describe("mp3 (default), pcm, wav, opus, aac, flac"),
+        style: z.string().optional().describe("Speaking style, e.g. neutral"),
+        agent_id: z.union([z.string(), z.number()]).optional().describe("If set, the generated audio is saved as the agent's notification clip"),
+    }),
+    execute: async (args) => {
+        const response = await apiClient.post("/tts/generate", args);
+        return toText(response.data);
+    },
+});
+
+mcp.addTool({
+    name: "validateTextSafety",
+    description: "Check a message for profanity / swear words (English, Bahasa Malaysia, Mandarin, Tamil) before it is spoken (POST /v1/validate-text-safety). Returns { safe, found, languages }.",
+    parameters: z.object({
+        text: z.string().describe("The text/message to check"),
+    }),
+    execute: async (args) => {
+        const response = await apiClient.post("/validate-text-safety", args);
+        return toText(response.data);
+    },
+});
+
+// --- Provider ---
+
+mcp.addTool({
+    name: "getProviderInfo",
+    description: "Get the user's available DID / caller-ID numbers and current SIP/VoIP provider.",
+    parameters: z.object({}),
+    execute: async () => {
+        const response = await apiClient.get("/provider/numbers");
+        return toText(response.data);
+    },
+});
+
+// --- Skill guide ---
+
+mcp.addTool({
+    name: "getSkillGuide",
+    description: "Return the CallRemind MCP onboarding guide (skill.md): the journey from signing up to making quick calls, scheduling, agents, and webhooks.",
+    parameters: z.object({}),
+    execute: async () => {
+        const response = await apiClient.get("/auth/skill");
         return toText(response.data);
     },
 });
@@ -432,6 +567,33 @@ mcp.addTool({
     parameters: z.object({}),
     execute: async () => {
         const response = await authClient2.post("/auth/logout-user", {});
+        return toText(response.data);
+    },
+});
+
+mcp.addTool({
+    name: "requestOtp",
+    description: `Request a fresh email one-time sign-in code for the account (POST /auth/connect-request). Sends a 6-digit code to the account email; use validateOtp next.
+Example: requestOtp({}) -> sends a 6-digit code to your email.`,
+    parameters: z.object({
+        email: z.string().optional().describe("Account email (defaults to the configured key's account)"),
+    }),
+    execute: async (args) => {
+        const response = await apiClient.post("/auth/connect-request", { email: args.email });
+        return toText(response.data);
+    },
+});
+
+mcp.addTool({
+    name: "validateOtp",
+    description: `Validate an email one-time code for the signed-in account and return the account's API key (POST /auth/connect-verify). Use after requestOtp.
+Example: validateOtp({ "otp": "123456" }) -> { email, api_key }`,
+    parameters: z.object({
+        otp: z.string().describe("The 6-digit code from your email"),
+        email: z.string().optional().describe("Account email"),
+    }),
+    execute: async (args) => {
+        const response = await apiClient.post("/auth/connect-verify", { email: args.email, otp: String(args.otp) });
         return toText(response.data);
     },
 });
