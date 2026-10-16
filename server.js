@@ -56,6 +56,40 @@ function toText(data) {
     return JSON.stringify(data);
 }
 
+// Keep tool failures visible to Claude.  Axios otherwise throws only a generic
+// error at the MCP boundary, hiding the API's useful validation/engine message.
+async function callApi(method, path, payload) {
+    try {
+        const response = method === "get"
+            ? await apiClient.get(path, { params: payload })
+            : await apiClient[method](path, payload);
+        return response.data;
+    } catch (error) {
+        const status = error.response?.status ?? null;
+        const body = error.response?.data ?? null;
+        const apiMessage = body?.message || body?.error || body?.detail || null;
+        const code = error.code || null;
+        const message = apiMessage || error.message || "Unknown CallRemind API error";
+        return {
+            ok: false,
+            error: {
+                message,
+                status,
+                code,
+                endpoint: `${method.toUpperCase()} ${path}`,
+                api_response: body,
+                hint: status === 401 || status === 403
+                    ? "Authentication failed or this account is not permitted to place calls."
+                    : status === 402
+                        ? "Insufficient CallRemind balance or billing permission."
+                        : code === "ECONNABORTED" || code === "ETIMEDOUT"
+                            ? "CallRemind API or call engine timed out."
+                            : "The call pipeline failed after MCP authentication. Check TTS, moderation, and outbound engine logs."
+            }
+        };
+    }
+}
+
 // All call tools exposed by this MCP are one-way notifications. Interactive AI
 // calling is intentionally not exposed here.
 
@@ -69,8 +103,7 @@ mcp.addTool({
         from_number: z.string().optional().describe("Caller ID / from number"),
     }),
     execute: async (args) => {
-        const response = await apiClient.post("/calls/quick-call", args);
-        return toText(response.data);
+        return toText(await callApi("post", "/calls/quick-call", args));
     },
 });
 
@@ -84,8 +117,7 @@ mcp.addTool({
         from_number: z.string().optional().describe("Caller ID / from number"),
     }),
     execute: async (args) => {
-        const response = await apiClient.post("/calls/quick-call-with-edge", args);
-        return toText(response.data);
+        return toText(await callApi("post", "/calls/quick-call-with-edge", args));
     },
 });
 
@@ -99,8 +131,7 @@ mcp.addTool({
         from_number: z.string().optional().describe("Caller ID / from number"),
     }),
     execute: async (args) => {
-        const response = await apiClient.post("/calls/instant-kokoro-call", args);
-        return toText(response.data);
+        return toText(await callApi("post", "/calls/instant-kokoro-call", args));
     },
 });
 
