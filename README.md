@@ -197,7 +197,7 @@ URL:       http://<host>:8921/mcp
 | Tool | Endpoint | Purpose |
 |------|----------|---------|
 | `quickCall` | `POST /v1/calls/quick-call` | One-way call, only phone + message (Kokoro) |
-| `quickCallWithEdge` | `POST /v1/calls/quick-call-with-edge` | One-way call using Edge TTS (backup) |
+| `quickCallWithEdge` | `POST /v1/calls/quick-call-with-edge` | One-way call using Edge TTS (explicit backup; Kokoro is the MCP default) |
 | `makeInstantKokoroCall` | `POST /v1/calls/instant-kokoro-call` | Immediate one-way call (Kokoro) |
 | `getCemasConfig` / `saveCemasConfig` | `/v1/cemas` | CEMAS config + voice prefs |
 | `listEdgeVoices` / `previewEdgeVoice` | `/v1/tts/edge-*` | Edge TTS voices / preview |

@@ -139,7 +139,7 @@ mcp.addTool({
 
 mcp.addTool({
     name: "getCemasConfig",
-    description: "Get the authenticated user's CEMAS config: namespace, destination phone(s), active flag, and Edge TTS voice/prosody preferences.",
+    description: "Get the authenticated user's CEMAS config: namespace, destination phone(s), active flag, and Kokoro voice preferences. Kokoro is the MCP default; Edge remains optional.",
     parameters: z.object({
         owner_email: z.string().optional().describe("Ignored for user API keys; required only with system API key"),
     }),
@@ -151,12 +151,12 @@ mcp.addTool({
 
 mcp.addTool({
     name: "saveCemasConfig",
-    description: "Save the user's CEMAS destination phone(s), active flag, and voice prefs. voice_provider selects Edge TTS (default) or Kokoro.",
+    description: "Save the user's CEMAS destination phone(s), active flag, and voice prefs. Kokoro is the default MCP provider; choose Edge explicitly only when needed.",
     parameters: z.object({
         destination_phone_number: z.array(z.string()).describe("List of phone numbers to notify"),
         is_active: z.boolean().optional().describe("Whether CEMAS notifications are active"),
-        voice_provider: z.enum(["EDGETTS", "KOKORO"]).optional().describe("TTS provider for the notification call (default EDGETTS)"),
-        edge_voice_preference: z.string().optional().describe("Voice id (Edge ShortName or Kokoro id, matching voice_provider)"),
+        voice_provider: z.enum(["EDGETTS", "KOKORO"]).default("KOKORO").describe("TTS provider for the notification call (default KOKORO)"),
+        edge_voice_preference: z.string().optional().describe("Voice id (Kokoro id by default, or Edge ShortName when voice_provider is EDGETTS)"),
         edge_rate: z.number().optional().describe("0.1-10 (1.0 = normal). Edge only."),
         edge_pitch: z.number().optional().describe("0-2 (1.0 = normal). Edge only."),
         edge_volume: z.number().optional().describe("0-1 (1.0 = max). Edge only."),
@@ -238,11 +238,11 @@ mcp.addTool({
 
 mcp.addTool({
     name: "generateTts",
-    description: "Synthesize TTS audio directly (POST /v1/tts/generate). Provider: openai | elevenlabs | minimax | qwen_flash | qwen_plus | kokoro | edge. Returns a playable audio file URL.",
+    description: "Synthesize TTS audio directly (POST /v1/tts/generate). Kokoro is the default provider; other providers can be selected explicitly. Returns a playable audio file URL.",
     parameters: z.object({
         text: z.string().describe("Text to synthesize"),
         voice: z.string().optional().describe("Voice id for the selected provider"),
-        provider: z.enum(["openai", "elevenlabs", "minimax", "qwen_flash", "qwen_plus", "kokoro", "edge"]).optional().describe("TTS provider (default openai)"),
+        provider: z.enum(["openai", "elevenlabs", "minimax", "qwen_flash", "qwen_plus", "kokoro", "edge"]).default("kokoro").describe("TTS provider (default kokoro)"),
         format: z.string().optional().describe("mp3 (default), pcm, wav, opus, aac, flac"),
         style: z.string().optional().describe("Speaking style, e.g. neutral"),
         agent_id: z.union([z.string(), z.number()]).optional().describe("If set, the generated audio is saved as the agent's notification clip"),
