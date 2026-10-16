@@ -56,28 +56,8 @@ function toText(data) {
     return JSON.stringify(data);
 }
 
-// --- Instant Calls ---
-
-mcp.addTool({
-    name: "makeInstantCall",
-    description: "Trigger an immediate outbound AI voice call via /v1/calls/instant. Use an existing agent (agent_id), a template (message), or a fully custom prompt/voice.",
-    parameters: z.object({
-        phone: z.string().describe("Destination phone number"),
-        message: z.string().optional().describe("Notification / start message text"),
-        agent_id: z.union([z.string(), z.number()]).optional().describe("Existing agent id (uses its voice + prompt)"),
-        voice_provider: z.enum(["OPENAI", "ELEVENLABS", "MINIMAX", "QWEN", "EDGETTS", "KOKORO"]).optional().describe("TTS provider"),
-        voice: z.string().optional().describe("Voice id (OpenAI: alloy/sage; Edge: e.g. ms-MY-YasminNeural; Kokoro: e.g. af_heart)"),
-        system_prompt: z.string().optional().describe("AI system prompt for a fully custom call"),
-        notification_voice_message: z.string().optional().describe("Spoken message for notification agent"),
-        from_number: z.string().optional().describe("Caller ID / from number"),
-        voice_clone_id: z.string().optional().describe("Qwen voice clone id (only with QWEN provider)"),
-        noninteractive: z.boolean().optional().describe("One-way playback only"),
-    }),
-    execute: async (args) => {
-        const response = await apiClient.post("/calls/instant", args);
-        return toText(response.data);
-    },
-});
+// All call tools exposed by this MCP are one-way notifications. Interactive AI
+// calling is intentionally not exposed here.
 
 mcp.addTool({
     name: "quickCall",

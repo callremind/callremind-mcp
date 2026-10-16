@@ -1,7 +1,7 @@
 {
     "name": "callremind-mcp",
     "version": "1.0.6",
-    "description": "CallRemind MCP server - AI agent integration for outbound calls, leads, agents, and CEMAS notifications.",
+    "description": "CallRemind MCP server for non-interactive phone-call notifications and reminders.",
     "main": "index.js",
     "scripts": {
         "test": "node test-api.js",
@@ -12,7 +12,10 @@
         "mcp",
         "callremind",
         "avr",
-        "outbound-call"
+        "outbound-call",
+        "phone-call-reminder",
+        "voice-notification",
+        "non-interactive"
     ],
     "author": "CallRemind",
     "license": "ISC",
